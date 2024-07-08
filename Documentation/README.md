@@ -23,7 +23,7 @@ _Code_ I decide I want my tokenA to have a supply of 1 million and my rewardToke
 
 _Thoughts_ TDD is an important part of coding solidity contracts.
 
-2. Research how to create a staking contract.
+1. Research how to create a staking contract.
 
 - Search "how do i create a staking contract + erc20"
 - Read guides:
@@ -48,7 +48,7 @@ I manage to deploy the three contracts on remix and after that my first step is 
 
 With a coding enviorment where i can do trail and error and I have taken the first few steps in this challange and made it work, I feel that I will be able to complete the challange and enjoy the journey getting there.
 
-When trying my stake function i encounter an error in my staking contract, it checks the amount of staking tokens in the staking address itself instead of the sender address. I add a function to check the address of the sender in my staking contract and I can see it works. In the code below the msg.sender in the first function returns the correct one, but in the stake function it returns the contract address itself.
+When trying my stake function I encounter an error in my staking contract, it checks the amount of staking tokens in the staking address itself instead of the sender address. I add a function to check the address of the sender in my staking contract and I can see it works. In the code below the msg.sender in the first function returns the correct one, but in the stake function it returns the contract address itself.
 
 ```
         function getAddressOfSender() external view returns (address) {
@@ -58,7 +58,7 @@ When trying my stake function i encounter an error in my staking contract, it ch
     function stake(uint256 amount) external {
       require(amount > 0, "amount is <= 0");
       require(tokenA.balanceOf(msg.sender) >= amount, "balance is <= amount");
-      tokenA.transfer(msg.sender, amount);
+      tokenA.safeTransferFrom(msg.sender, address(this), amount);
       if(staked[msg.sender] > 0){
         claim();
       }
@@ -69,9 +69,35 @@ When trying my stake function i encounter an error in my staking contract, it ch
 
 ```
 
-After some troubleshooting I understood that the problem was that the staking contract didn't have approval to transfer tokenA from sender. So I just had to go to tokenA contract in remix and approve the address of the staking contract to transfer funds from the wallet address i was using.
+After some troubleshooting I understood that the problem was that the staking contract didn't have approval to transfer tokenA from sender. So I just had to go to tokenA contract in remix and approve the address of the staking contract to transfer funds from the wallet address I was using.
 
-.
+User story 1 completed.
+
+2. Add a withdraw function to the staking contract. (2024-07-08)
+
+The withdraw function was easy and completed in 5 minutes.
+
+User story 2 completed
+
+3.  Add a withdraw rewards method.
+
+First I want to add a way to display how many reward tokens a staker has accumulted. When writing that function I want to understand the different options of visability for functions in solidity so i can choose the one that best suits my wants and needs. I ask chat GPT to explain the difference between internal, external and public functions in solidity. I learn there is also a private alternative. I choose to make my calculateRewards function public so I can try it out in remix seperatly and also be able to use it within my staking contract for the claim function.
+
+I also learn how to use and write return values so that it can be displayed from a function. Its not enough to only add a return line at the end of the function, the function also needs a return type specified in the start, much like how TS works.
+
+I encounter alot of issues when trying to do the claim function. When it is not working its cumbersome to try and change a little bit of code here and there and then go through the process of deploying the contracts and sending tokens, approving tokens etc. There is not a console.log() function either to help with the troubleshooting. However, i create functions and mappings to be able to display the variables i use and see if they return what i expect them to.
+
+Ultimatley, it seems like the main issue i encountered was the calculation for the reward, it was too slow and therefor too low to show a number greater than 0 during my testing.
+
+After alot of back and forth i end up creating a few functions connected to the reward:
+
+- staking duration: used to find out how long time the staker has staked.
+- calculate reward: used to find out what the current reward is.
+- update reward: used in many functions to calculate and update the reward for the staker.
+- claim reward: a function to claim the reward.
+
+User story 3 completed.
+
 .
 .
 .

@@ -12,39 +12,74 @@ contract StakingContract is Ownable {
   IERC20 public rewardToken;
   mapping(address => uint256) public staked;
   mapping(address => uint256) public rewards;
-  mapping(address => uint256) private stakedFromTS;
+  mapping(address => uint256) public stakedFromTS;
 
     constructor(address _tokenA, address _rewardToken) Ownable(msg.sender) {
-      tokenA = IERC20(_tokenA);
-      rewardToken = IERC20(_rewardToken);
-  }
+        tokenA = IERC20(_tokenA);
+        rewardToken = IERC20(_rewardToken);
+    }
 
-      function rewardTokenBalance() external view returns (uint256) {
+    function rewardTokenBalance() external view returns (uint256) {
         return rewardToken.balanceOf(address(this));
     }
 
-        function getAddressOfSender() external view returns (address) {
+    function getAddressOfSender() external view returns (address) {
         return msg.sender;
     }
 
     function stake(uint256 amount) external {
-      require(amount > 0, "amount is <= 0");
-      require(tokenA.balanceOf(msg.sender) >= amount, "balance is <= amount");
-      tokenA.transferFrom(msg.sender, address(this), amount);
-      if(staked[msg.sender] > 0){
-        claim();
-      }
+        require(amount > 0, "amount is <= 0");
+        require(tokenA.balanceOf(msg.sender) >= amount, "balance is <= amount");
 
-      stakedFromTS[msg.sender] = block.timestamp;
-      staked[msg.sender] += amount;
+        updateReward(msg.sender);
+
+        tokenA.safeTransferFrom(msg.sender, address(this), amount);
+
+        stakedFromTS[msg.sender] = block.timestamp;
+        staked[msg.sender] += amount;
     }
 
-  function claim() public {
-    require(staked[msg.sender] > 0, "staked is <=0");
-    uint256 secondsStaked = block.timestamp - stakedFromTS[msg.sender];
-    uint256 reward = staked[msg.sender] * secondsStaked / 3.15e7;
-    rewards[msg.sender] += reward;
-    rewardToken.safeTransfer(msg.sender, reward);
-    stakedFromTS[msg.sender] = block.timestamp;
-  }
+    function withdrawStake(uint256 amount) external {
+        require(staked[msg.sender] >= amount, "Insufficient staked amount");
+
+        updateReward(msg.sender);
+
+        staked[msg.sender] -= amount;
+        tokenA.safeTransfer(msg.sender, amount);
+    }
+
+    function updateReward(address staker) internal {
+        if (staked[staker] > 0) {
+            uint256 currentStakingDuration = block.timestamp - stakedFromTS[staker];
+            uint256 reward = (staked[staker] * currentStakingDuration) / 100;
+            rewards[staker] += reward;
+            stakedFromTS[staker] = block.timestamp;
+        }
+    }
+
+    function calculateReward(address staker) public view returns (uint256) {
+        require(staked[staker] > 0, "No tokens staked");
+        require(stakedFromTS[staker] > 0, "Staked timestamp not set");
+
+        uint256 tempSecondsStaked = block.timestamp - stakedFromTS[staker];
+        require(tempSecondsStaked > 0, "No time elapsed since staking");
+
+        uint256 reward = (staked[staker] * tempSecondsStaked) / 100;
+        return rewards[staker] + reward;
+    }
+
+    function claim() public {
+        updateReward(msg.sender);
+        uint256 rewardToTransfer = rewards[msg.sender];
+        rewards[msg.sender] = 0;
+        rewardToken.safeTransfer(msg.sender, rewardToTransfer);
+    }
+
+        function getCurrentStakingDuration(address staker) public view returns (uint256) {
+        if (staked[staker] > 0) {
+            return block.timestamp - stakedFromTS[staker];
+        } else {
+            return 0;
+        }
+    }
 }
