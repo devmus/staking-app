@@ -38,11 +38,39 @@ _Thoughts_ When comparing the two videos I understand there are different ways t
 
 I do a Linked in learning course to get the basic understanding of solidity language a little better. (Blockchain: Learning Solidity)
 
-I open Remix and put my token contract code in there and play around with it. I immediatly get information about my code is a bit out-of-date and I update the code to better match a modern way of writing solidity code.
+I open Remix and put my token contract code in there and play around with it. I immediatly get information from the editor about my code, it is a bit out-of-date and I try to update the code to better match a modern way of writing solidity code.
 
-I follow a guide to write the staking contract but that guide has a contract that sends reward tokens that the contract itself mints. I go to solidity docs to read about how the transfer function works so that i can instead transfer reward tokens that I have previously sent to the staking contract. At this point the docs are a bit too complex to make use of and I consolt with chatGPT a bit more.
+I follow a guide to write the staking contract but that guide has a contract that sends reward tokens that the contract itself mints. I go to solidity docs to read about how the transfer function works so that i can instead transfer reward tokens that I have previously sent to the staking contract. At this point the docs are a bit too complex to make use of and I go to my trusted friend chatGPT to aid me.
 
 I find out about Openzeppelin with premade contracts that can be imported and used to simplify the construction of contracts. For the token contract I already used "@openzeppelin/contracts/token/ERC20/ERC20.sol" but for the staking contract I learn about IERC20.sol SafeERC20.sol and Ownable.sol.
+
+I manage to deploy the three contracts on remix and after that my first step is to make sure I can transfer rewardTokens to the staking contract. I also add a function in the staking contract that can display the amount of rewards token inside it. It works!
+
+With a coding enviorment where i can do trail and error and I have taken the first few steps in this challange and made it work, I feel that I will be able to complete the challange and enjoy the journey getting there.
+
+When trying my stake function i encounter an error in my staking contract, it checks the amount of staking tokens in the staking address itself instead of the sender address. I add a function to check the address of the sender in my staking contract and I can see it works. In the code below the msg.sender in the first function returns the correct one, but in the stake function it returns the contract address itself.
+
+```
+        function getAddressOfSender() external view returns (address) {
+        return msg.sender;
+    }
+
+    function stake(uint256 amount) external {
+      require(amount > 0, "amount is <= 0");
+      require(tokenA.balanceOf(msg.sender) >= amount, "balance is <= amount");
+      tokenA.transfer(msg.sender, amount);
+      if(staked[msg.sender] > 0){
+        claim();
+      }
+
+      stakedFromTS[msg.sender] = block.timestamp;
+      staked[msg.sender] += amount;
+    }
+
+```
+
+After some troubleshooting I understood that the problem was that the staking contract didn't have approval to transfer tokenA from sender. So I just had to go to tokenA contract in remix and approve the address of the staking contract to transfer funds from the wallet address i was using.
+
 .
 .
 .
