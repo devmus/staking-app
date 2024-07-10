@@ -15,7 +15,7 @@
 - Create tokenA.sol file and start coding.
 - Create a rewardToken.sol file and coding.
 
-- Ask chat-GPT how \_initial_supply works with a value like `100 \* (10\*\*18)`. (Later I understand \_initial_supply is only a arbitrary constant that is used as the second argument in the \_mint function)
+- Ask chat-GPT how \_initial_supply works with a value like `100 \* (10\*\*18)`. (Later I understand \_initial_supply is only a arbitrary constant name that is used as the second argument in the \_mint function)
 
 _Code_ I decide I want my tokenA to have a supply of 1 million and my rewardToken to have a supply of 100 million.
 
@@ -51,21 +51,21 @@ With a coding enviorment where i can do trail and error and I have taken the fir
 When trying my stake function I encounter an error in my staking contract, it checks the amount of staking tokens in the staking address itself instead of the sender address. I add a function to check the address of the sender in my staking contract and I can see it works. In the code below the msg.sender in the first function returns the correct one, but in the stake function it returns the contract address itself.
 
 ```
-        function getAddressOfSender() external view returns (address) {
-        return msg.sender;
+  function getAddressOfSender() external view returns (address) {
+    return msg.sender;
+  }
+
+  function stake(uint256 amount) external {
+    require(amount > 0, "amount is <= 0");
+    require(tokenA.balanceOf(msg.sender) >= amount, "balance is <= amount");
+    tokenA.safeTransferFrom(msg.sender, address(this), amount);
+    if(staked[msg.sender] > 0){
+      claim();
     }
 
-    function stake(uint256 amount) external {
-      require(amount > 0, "amount is <= 0");
-      require(tokenA.balanceOf(msg.sender) >= amount, "balance is <= amount");
-      tokenA.safeTransferFrom(msg.sender, address(this), amount);
-      if(staked[msg.sender] > 0){
-        claim();
-      }
-
-      stakedFromTS[msg.sender] = block.timestamp;
-      staked[msg.sender] += amount;
-    }
+    stakedFromTS[msg.sender] = block.timestamp;
+    staked[msg.sender] += amount;
+  }
 
 ```
 
@@ -98,6 +98,23 @@ After alot of back and forth i end up creating a few functions connected to the 
 
 User story 3 completed.
 
+4. Track users, balances, claimed rewards. (2024-07-09)
+
+Adding functions to track staked user addresses was relativly easy.
+
+To be able to track both the address of the staked user and the amount I found out you can create a struct, which resemble a little bit how an object works in javascript. Then i can store both the address and the amount of the staker in that struct and put it in an array together with all of the other stakers.
+
+When adding the last part - being able to track claimed rewards I realize i don't want to delete users that has withdrawn their stake and currently has 0 stake. I comment out those functions in the contract instead of deleting it so it's easier to understand this coding log.
+
+I add a third value to the struct StakedUser (rewardsClaimed) and make sure to update it every time the user claims the rewards.
+
+User story 4 completed.
+
+5. Emit proper valuable events. (2024-07-10)
+
+When I read about what events does i realize it could have been valueable to have implemented events earlier in the coding of the contract to more easily do debugging.
+
+The events that i feel are the most valuable should be stake - withdraw - claim.
 .
 .
 .

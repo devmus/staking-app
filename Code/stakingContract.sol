@@ -8,11 +8,20 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract StakingContract is Ownable {
     using SafeERC20 for IERC20;
 
-  IERC20 public tokenA;
-  IERC20 public rewardToken;
-  mapping(address => uint256) public staked;
-  mapping(address => uint256) public rewards;
-  mapping(address => uint256) public stakedFromTS;
+  IERC20 private tokenA;
+  IERC20 private rewardToken;
+  mapping(address => uint256) private staked;
+  mapping(address => uint256) private rewards;
+  mapping(address => uint256) private stakedFromTS;
+
+  struct StakedUser{
+    address user;
+    uint256 amount;
+    uint256 rewardsClaimed;
+  }
+
+  StakedUser[] private stakedUsers;
+  mapping(address => uint256) private userIndex;
 
     constructor(address _tokenA, address _rewardToken) Ownable(msg.sender) {
         tokenA = IERC20(_tokenA);
@@ -31,7 +40,13 @@ contract StakingContract is Ownable {
         require(amount > 0, "amount is <= 0");
         require(tokenA.balanceOf(msg.sender) >= amount, "balance is <= amount");
 
-        updateReward(msg.sender);
+        if (staked[msg.sender] == 0) {
+            stakedUsers.push(StakedUser(msg.sender, amount, 0));
+            userIndex[msg.sender] = stakedUsers.length - 1;
+        } else {
+            updateReward(msg.sender);
+            stakedUsers[userIndex[msg.sender]].amount += amount;
+        }
 
         tokenA.safeTransferFrom(msg.sender, address(this), amount);
 
@@ -45,8 +60,30 @@ contract StakingContract is Ownable {
         updateReward(msg.sender);
 
         staked[msg.sender] -= amount;
+        stakedUsers[userIndex[msg.sender]].amount -= amount;
         tokenA.safeTransfer(msg.sender, amount);
+
+        // if (staked[msg.sender] == 0) {
+        //     removeStakedUser(msg.sender);
+        // }
     }
+
+    function getStakedUsers() external view returns (StakedUser[] memory) {
+        return stakedUsers;
+    }
+
+    // function removeStakedUser(address user) internal {
+    //     uint256 index = userIndex[user];
+    //     uint256 length = stakedUsers.length;
+
+    //      if (index < length - 1) {
+    //         stakedUsers[index] = stakedUsers[length - 1];
+    //         userIndex[stakedUsers[index].user] = index;
+    //     }
+
+    //     stakedUsers.pop();
+    //     delete userIndex[user];
+    // }
 
     function updateReward(address staker) internal {
         if (staked[staker] > 0) {
@@ -57,27 +94,32 @@ contract StakingContract is Ownable {
         }
     }
 
-    function calculateReward(address staker) public view returns (uint256) {
-        require(staked[staker] > 0, "No tokens staked");
-        require(stakedFromTS[staker] > 0, "Staked timestamp not set");
+    function calculateReward() public view returns (uint256) {
+        require(staked[msg.sender] > 0, "No tokens staked");
+        require(stakedFromTS[msg.sender] > 0, "Staked timestamp not set");
 
-        uint256 tempSecondsStaked = block.timestamp - stakedFromTS[staker];
+        uint256 tempSecondsStaked = block.timestamp - stakedFromTS[msg.sender];
         require(tempSecondsStaked > 0, "No time elapsed since staking");
 
-        uint256 reward = (staked[staker] * tempSecondsStaked) / 100;
-        return rewards[staker] + reward;
+        uint256 reward = (staked[msg.sender] * tempSecondsStaked) / 100;
+
+        return rewards[msg.sender] + reward;
     }
 
     function claim() public {
         updateReward(msg.sender);
+
         uint256 rewardToTransfer = rewards[msg.sender];
         rewards[msg.sender] = 0;
+
+        stakedUsers[userIndex[msg.sender]].rewardsClaimed  += rewardToTransfer;
+
         rewardToken.safeTransfer(msg.sender, rewardToTransfer);
     }
 
-        function getCurrentStakingDuration(address staker) public view returns (uint256) {
-        if (staked[staker] > 0) {
-            return block.timestamp - stakedFromTS[staker];
+    function getCurrentStakingDuration() public view returns (uint256) {
+        if (staked[msg.sender] > 0) {
+            return block.timestamp - stakedFromTS[msg.sender];
         } else {
             return 0;
         }
