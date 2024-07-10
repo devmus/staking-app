@@ -10,8 +10,10 @@ contract StakingContract is Ownable {
 
   IERC20 private tokenA;
   IERC20 private rewardToken;
+  uint256 private rewardRate;
+
   mapping(address => uint256) private staked;
-  mapping(address => uint256) private rewards;
+  mapping(address => uint256) public rewards;
   mapping(address => uint256) private stakedFromTS;
 
   struct StakedUser{
@@ -23,9 +25,15 @@ contract StakingContract is Ownable {
   StakedUser[] private stakedUsers;
   mapping(address => uint256) private userIndex;
 
-    constructor(address _tokenA, address _rewardToken) Ownable(msg.sender) {
+    event Staked(address indexed user, uint256 amount);
+    event Withdrawn(address indexed user, uint256 amount);
+    event Claimed(address indexed user, uint256 reward);
+    event RewardRateUpdated(uint256 oldRewardRate, uint256 newRewardRate);
+
+    constructor(address _tokenA, address _rewardToken, uint256 _initialRewardRate) Ownable(msg.sender) {
         tokenA = IERC20(_tokenA);
         rewardToken = IERC20(_rewardToken);
+        rewardRate = _initialRewardRate;
     }
 
     function rewardTokenBalance() external view returns (uint256) {
@@ -52,6 +60,8 @@ contract StakingContract is Ownable {
 
         stakedFromTS[msg.sender] = block.timestamp;
         staked[msg.sender] += amount;
+
+        emit Staked(msg.sender, amount);
     }
 
     function withdrawStake(uint256 amount) external {
@@ -62,6 +72,8 @@ contract StakingContract is Ownable {
         staked[msg.sender] -= amount;
         stakedUsers[userIndex[msg.sender]].amount -= amount;
         tokenA.safeTransfer(msg.sender, amount);
+
+        emit Withdrawn(msg.sender, amount);
 
         // if (staked[msg.sender] == 0) {
         //     removeStakedUser(msg.sender);
@@ -88,7 +100,7 @@ contract StakingContract is Ownable {
     function updateReward(address staker) internal {
         if (staked[staker] > 0) {
             uint256 currentStakingDuration = block.timestamp - stakedFromTS[staker];
-            uint256 reward = (staked[staker] * currentStakingDuration) / 100;
+            uint256 reward = (staked[staker] * currentStakingDuration) / rewardRate;
             rewards[staker] += reward;
             stakedFromTS[staker] = block.timestamp;
         }
@@ -101,7 +113,7 @@ contract StakingContract is Ownable {
         uint256 tempSecondsStaked = block.timestamp - stakedFromTS[msg.sender];
         require(tempSecondsStaked > 0, "No time elapsed since staking");
 
-        uint256 reward = (staked[msg.sender] * tempSecondsStaked) / 100;
+        uint256 reward = (staked[msg.sender] * tempSecondsStaked) / rewardRate;
 
         return rewards[msg.sender] + reward;
     }
@@ -115,6 +127,8 @@ contract StakingContract is Ownable {
         stakedUsers[userIndex[msg.sender]].rewardsClaimed  += rewardToTransfer;
 
         rewardToken.safeTransfer(msg.sender, rewardToTransfer);
+
+        emit Claimed(msg.sender, rewardToTransfer);
     }
 
     function getCurrentStakingDuration() public view returns (uint256) {
@@ -123,5 +137,15 @@ contract StakingContract is Ownable {
         } else {
             return 0;
         }
+    }
+
+    function setRewardRate(uint256 newRewardRate) external onlyOwner {
+        
+        for (uint256 i = 0; i < stakedUsers.length; i++) {
+            updateReward(stakedUsers[i].user);
+        }
+        
+        emit RewardRateUpdated(rewardRate, newRewardRate);
+        rewardRate = newRewardRate;
     }
 }

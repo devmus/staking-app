@@ -115,6 +115,29 @@ User story 4 completed.
 When I read about what events does i realize it could have been valueable to have implemented events earlier in the coding of the contract to more easily do debugging.
 
 The events that i feel are the most valuable should be stake - withdraw - claim.
+
+The syntax of events and emits was simple and adding events was easy when the rest of the code was already finished. When i check the remix logs I see that my events pretty much are just renamed Transfer events. I understand there is a advantage to have some transfers made into other events aswell for front end development and more.
+
+User story 5 completed.
+
+6. Authorized access
+
+I modify the reward calculation from:
+
+```
+  uint256 reward = (staked[msg.sender] * tempSecondsStaked) / 100;
+```
+
+to:
+
+```
+  uint256 reward = (staked[msg.sender] * tempSecondsStaked) / rewardRate;
+```
+
+and I add the rewardrate to the staking contract constructor.
+
+When I try it out i notice that if I change the rewardRate the rewards accumulated by staked users are affected. I need to update and save all the staked users accumulated rewards up until that point before starting to use the new rewardrate.
+
 .
 .
 .
